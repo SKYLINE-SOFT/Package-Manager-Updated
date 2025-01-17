@@ -1,0 +1,41 @@
+{
+  "pins" : [
+    {
+      "identity" : "alamofire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Alamofire/Alamofire.git",
+      "state" : {
+        "revision" : "e16d3481f5ed35f0472cb93350085853d754913f",
+        "version" : "5.10.1"
+      }
+    },
+    {
+      "identity" : "appsflyerframework-static",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AppsFlyerSDK/AppsFlyerFramework-Static",
+      "state" : {
+        "revision" : "65945f5d9c37bc98434d48af39540f326adbfa35",
+        "version" : "6.15.3"
+      }
+    },
+    {
+      "identity" : "facebook-ios-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/facebook/facebook-ios-sdk",
+      "state" : {
+        "revision" : "619d1772808425faa010d92293b26eeb9bc1d630",
+        "version" : "17.4.0"
+      }
+    },
+    {
+      "identity" : "pushexpress-swift-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pushexpress/pushexpress-swift-sdk.git",
+      "state" : {
+        "revision" : "adc3ffa122bae3a2ff6c129f9bc6e4664c63f3d1",
+        "version" : "1.0.1"
+      }
+    }
+  ],
+  "version" : 2
+}
