@@ -200,35 +200,29 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
 
     
     public class WebController: UIViewController, WKNavigationDelegate, WKUIDelegate {
-        
+
         private var mainErrorsHandler: WKWebView!
         
         @AppStorage("savedData") var savedData: String?
         @AppStorage("statusFlag") var statusFlag: Bool = false
         
         public var errorURL: String!
-        
-        private var popUps: [UIViewController] = []
-        
+
         public override func viewDidLoad() {
             super.viewDidLoad()
-            
-            let config = WKWebViewConfiguration()
-            config.allowsInlineMediaPlayback = true
-            config.mediaTypesRequiringUserActionForPlayback = []
-            config.preferences.javaScriptEnabled = true
 
-            let source = """
+            let config = WKWebViewConfiguration()
+            config.preferences.javaScriptEnabled = true
+            config.preferences.javaScriptCanOpenWindowsAutomatically = true
+
+            let viewportScript = """
             var meta = document.createElement('meta');
             meta.name = 'viewport';
             meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            var head = document.getElementsByTagName('head')[0];
-            head.appendChild(meta);
+            document.getElementsByTagName('head')[0].appendChild(meta);
             """
-            let script = WKUserScript(source: source,
-                                      injectionTime: .atDocumentEnd,
-                                      forMainFrameOnly: true)
-            config.userContentController.addUserScript(script)
+            let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+            config.userContentController.addUserScript(userScript)
 
             mainErrorsHandler = WKWebView(frame: .zero, configuration: config)
             mainErrorsHandler.isOpaque = false
@@ -255,64 +249,32 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
             navigationController?.isNavigationBarHidden = true
         }
 
-        
         private func loadContent(urlString: String) {
             guard let encodedURL = urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                  let url = URL(string: encodedURL) else {
-                return
-            }
-            var urlRequest = URLRequest(url: url)
-            urlRequest.cachePolicy = .returnCacheDataElseLoad
-            mainErrorsHandler.load(urlRequest)
+                  let url = URL(string: encodedURL) else { return }
+            let request = URLRequest(url: url)
+            mainErrorsHandler.load(request)
         }
 
         public func webView(_ webView: WKWebView,
                             createWebViewWith configuration: WKWebViewConfiguration,
                             for navigationAction: WKNavigationAction,
                             windowFeatures: WKWindowFeatures) -> WKWebView? {
-            
             let popupWebView = WKWebView(frame: .zero, configuration: configuration)
-            popupWebView.uiDelegate = self
             popupWebView.navigationDelegate = self
+            popupWebView.uiDelegate = self
             popupWebView.allowsBackForwardNavigationGestures = true
-            popupWebView.backgroundColor = .white
 
-            let popupVC = UIViewController()
-            popupVC.view.backgroundColor = .systemBackground
-            popupVC.view.addSubview(popupWebView)
-            
+            mainErrorsHandler.addSubview(popupWebView)
             popupWebView.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
-                popupWebView.topAnchor.constraint(equalTo: popupVC.view.topAnchor),
-                popupWebView.bottomAnchor.constraint(equalTo: popupVC.view.bottomAnchor),
-                popupWebView.leadingAnchor.constraint(equalTo: popupVC.view.leadingAnchor),
-                popupWebView.trailingAnchor.constraint(equalTo: popupVC.view.trailingAnchor)
+                popupWebView.topAnchor.constraint(equalTo: mainErrorsHandler.topAnchor),
+                popupWebView.bottomAnchor.constraint(equalTo: mainErrorsHandler.bottomAnchor),
+                popupWebView.leadingAnchor.constraint(equalTo: mainErrorsHandler.leadingAnchor),
+                popupWebView.trailingAnchor.constraint(equalTo: mainErrorsHandler.trailingAnchor)
             ])
 
-            let navController = UINavigationController(rootViewController: popupVC)
-            popupVC.navigationItem.leftBarButtonItem = UIBarButtonItem(
-                barButtonSystemItem: .done,
-                target: self,
-                action: #selector(closePopup(sender:))
-            )
-            popUps.append(popupVC)  
-            self.present(navController, animated: true)
-
             return popupWebView
-        }
-
-        public func webViewDidClose(_ webView: WKWebView) {
-            if let index = popUps.firstIndex(where: { vc in
-                vc.view.subviews.contains(webView)
-            }) {
-                let popupToClose = popUps[index]
-                popUps.remove(at: index)
-                popupToClose.dismiss(animated: true)
-            }
-        }
-
-        @objc private func closePopup(sender: UIBarButtonItem) {
-            self.dismiss(animated: true)
         }
 
     }
