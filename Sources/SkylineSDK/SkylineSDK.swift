@@ -3,8 +3,6 @@ import UIKit
 import AppsFlyerLib
 import Alamofire
 import SwiftUI
-import FBSDKCoreKit
-import FBAEMKit
 import AppTrackingTransparency
 import AdSupport
 import SdkPushExpress

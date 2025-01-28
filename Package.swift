@@ -15,7 +15,6 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/AppsFlyerSDK/AppsFlyerFramework-Static", from: "6.15.3"),
-        .package(url: "https://github.com/facebook/facebook-ios-sdk", from: "17.0.0"),
         .package(url: "https://github.com/Alamofire/Alamofire.git", .upToNextMajor(from: "5.10.0")),
         .package(url: "https://github.com/pushexpress/pushexpress-swift-sdk.git", .upToNextMajor(from: "1.0.1"))
     ],
@@ -26,8 +25,6 @@ let package = Package(
             name: "SkylineSDK",
             dependencies: [
                 .product(name: "AppsFlyerLib-Static", package: "AppsFlyerFramework-Static"),
-                .product(name: "FacebookCore", package: "facebook-ios-sdk"),
-                .product(name: "FacebookAEM", package: "facebook-ios-sdk"),
                 .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "SdkPushExpress", package: "pushexpress-swift-sdk")
             ]),
