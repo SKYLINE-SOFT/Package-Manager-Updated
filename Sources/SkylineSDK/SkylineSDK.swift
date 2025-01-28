@@ -104,10 +104,6 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         self.paramName = paramName
         self.mainWindow = window
 
-        ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: nil)
-        Settings.shared.isAdvertiserIDCollectionEnabled = true
-        Settings.shared.isAutoLogAppEventsEnabled = true
-
         try? PushExpressManager.shared.initialize(appId: pushExpressKey)
 
         AppsFlyerLib.shared().appsFlyerDevKey = appsFlyerKey
