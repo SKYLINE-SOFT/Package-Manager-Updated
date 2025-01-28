@@ -13,9 +13,9 @@ import WebKit
 
 public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
     
-    @AppStorage("savedData") var savedData: String?
     @AppStorage("initialURL") var initialURL: String?
     @AppStorage("statusFlag") var statusFlag: Bool = false
+    @AppStorage("finalData") var finalData: String?
     
     public func onConversionDataSuccess(_ conversionInfo: [AnyHashable : Any]) {
         var conversionData = [String: Any]()
@@ -153,27 +153,25 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
                     try? PushExpressManager.shared.activate()
                     
                     if self.initialURL == nil {
-                        self.initialURL = decodedData.naming
-                        if self.statusFlag {
-                            self.savedData = decodedData.naming
-                        }
+                        self.initialURL = decodedData.link
                         completion(.success(decodedData.link))
                     } else if decodedData.link == self.initialURL {
-                        if self.savedData == nil {
-                            if self.statusFlag {
-                                self.savedData = decodedData.link
+                            if self.finalData != nil {
+                                completion(.success(self.finalData!))
+                            } else {
+                                completion(.success(decodedData.link))
                             }
-                            completion(.success(decodedData.link))
-                        } else {
-                            completion(.success(self.savedData!))
-                        }
-                    } else {
-                        self.savedData = nil
+                    } else if self.statusFlag {
+                        self.finalData = nil
                         self.initialURL = decodedData.link
-                        if self.statusFlag {
-                            self.savedData = decodedData.link
-                        }
                         completion(.success(decodedData.link))
+                    } else {
+                        self.initialURL = decodedData.link
+                        if self.finalData != nil {
+                            completion(.success(self.finalData!))
+                        } else {
+                            completion(.success(decodedData.link))
+                        }
                     }
                     
                 case .failure:
@@ -241,6 +239,13 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
             ])
 
             loadContent(urlString: errorURL)
+        }
+        
+        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if SkylineSDK.shared.finalData == nil{
+                let finalUrl = webView.url?.absoluteString ?? ""
+                SkylineSDK.shared.finalData = finalUrl
+            }
         }
 
         public override func viewWillAppear(_ animated: Bool) {
