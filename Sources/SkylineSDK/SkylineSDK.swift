@@ -16,25 +16,20 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
     @AppStorage("finalData") var finalData: String?
     
     public func onConversionDataSuccess(_ conversionInfo: [AnyHashable : Any]) {
-        // Create the dictionary in the desired order:
-        var conversionData = [String: Any]()
+           let afDataJson = try! JSONSerialization.data(withJSONObject: conversionInfo, options: .fragmentsAllowed)
+           let afDataString = String(data: afDataJson, encoding: .utf8) ?? "{}"
+
+
+           let finalJsonString = """
+           {
+               "\(appsDataString)": \(afDataString),
+               "\(appsIDString)": "\(AppsFlyerLib.shared().getAppsFlyerUID() ?? "")",
+               "\(langString)": "\(Locale.current.languageCode ?? "")",
+               "\(tokenString)": "\(deviceToken)"
+           }
+           """
         
-        // 1) AFdata
-        conversionData[appsDataString] = conversionInfo
-        
-        // 2) AF_user_id
-        conversionData[appsIDString] = AppsFlyerLib.shared().getAppsFlyerUID()
-        
-        // 3) language
-        conversionData[langString] = Locale.current.languageCode
-        
-        // 4) deviceToken
-        conversionData[tokenString] = deviceToken
-        
-        let jsonData = try! JSONSerialization.data(withJSONObject: conversionData, options: .fragmentsAllowed)
-        let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
-        
-        sendDataToServer(code: jsonString) { result in
+        sendDataToServer(code: finalJsonString) { result in
             switch result {
             case .success(let message):
                 self.sendNotification(name: "SkylineSDKNotification", message: message)
